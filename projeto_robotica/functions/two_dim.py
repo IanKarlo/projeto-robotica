@@ -44,5 +44,4 @@ def ik(x, y):
     theta1_a = theta1(theta2_a)
     theta1_b = theta1(theta2_b)
 
-    # Retorna as duas soluções
     return (theta1_a, theta2_a), (theta1_b, theta2_b)
