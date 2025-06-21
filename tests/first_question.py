@@ -5,8 +5,9 @@ from functions.one_dim import SE2_xy, SE2_theta
 P = np.array([0.5, 0.5, 1]).reshape(3, 1)
 
 def test_1_p_em_R1():
-    P_R1 = P[:2].flatten()
-    assert np.allclose(P_R1, [0.5, 0.5]), f"Esperado [1.5, 0.75], obtido {P_R1}"
+    T = SE2_xy(1, 0.25) @ SE2_theta(math.radians(0))
+    P_R1 = T @ P
+    assert np.allclose(P_R1[:2].flatten(), [1.5, 0.75], atol=1e-6), f"Esperado [1.5, 0.75], obtido {P_R1}"
 
 def test_2_p_em_R2():
     T = SE2_xy(1, 0.25)
@@ -15,12 +16,9 @@ def test_2_p_em_R2():
     assert np.allclose(P_R2, [-0.5, 0.25]), f"Esperado [-0.5, 0.5], obtido {P_R2}"
 
 def test_3_p_em_R1_com_rotacao():
-    T = SE2_theta(math.radians(45)) @ SE2_xy(1, 0.25)
-    print(T)
-    P_R2 = T @ P
-    # P_R1 = T @ P_R2
-    print(P_R2)
-    # assert np.allclose(P_R1[:2].flatten(), [0.5, 0.5], atol=1e-6)
+    T = SE2_xy(1, 0.25) @ SE2_theta(math.radians(45))
+    P_R1 = T @ P
+    assert np.allclose(P_R1[:2].flatten(), [1, 0.9571], atol=1e-6), f"Esperado [-0.5, 0.5], obtido {P_R1}"
 
 def test_4_p_em_R2_com_rotacao():
     T = SE2_xy(1, 0.25) @ SE2_theta(math.radians(45))
