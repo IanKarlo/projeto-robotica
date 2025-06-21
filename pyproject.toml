@@ -9,6 +9,8 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "3.7.17"
 numpy = "1.21.6"
+roboticstoolbox-python = "^1.1.1"
+matplotlib = "3.5.3"
 
 
 [build-system]
@@ -18,3 +20,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 first_question = "tasks:test_first_question"
 second_question = "tasks:test_second_question"
+start = "tasks:start"

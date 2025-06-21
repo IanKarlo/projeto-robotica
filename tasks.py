@@ -36,3 +36,15 @@ def test_second_question():
         print(result.stdout)
     else:
         print("Error:", result.stderr)
+
+def start():
+    command = ["python3", "projeto_robotica/main.py"]
+
+    # Execute the command with the modified environment
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    # Print the output
+    if result.returncode == 0:
+        print(result.stdout)
+    else:
+        print("Error:", result.stderr)
