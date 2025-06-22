@@ -1,0 +1,15 @@
+pyproject.toml
+projeto_robotica/main.py
+projeto_robotica/tasks.py
+projeto_robotica/temp.py
+projeto_robotica.egg-info/PKG-INFO
+projeto_robotica.egg-info/SOURCES.txt
+projeto_robotica.egg-info/dependency_links.txt
+projeto_robotica.egg-info/entry_points.txt
+projeto_robotica.egg-info/requires.txt
+projeto_robotica.egg-info/top_level.txt
+projeto_robotica/drivers/simulation_driver/driver.py
+projeto_robotica/functions/one_dim.py
+projeto_robotica/functions/two_dim.py
+projeto_robotica/functions/trajectory/motor.py
+projeto_robotica/functions/trajectory/trajectory.py

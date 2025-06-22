@@ -1,0 +1,6 @@
+matplotlib
+numpy
+basedpyright
+roboticstoolbox-python
+flake8
+scipy
