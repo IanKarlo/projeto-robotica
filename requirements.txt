@@ -1,0 +1,3 @@
+matplotlib==3.5.3
+numpy==1.21.6
+roboticstoolbox-python==1.1.1

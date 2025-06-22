@@ -1,0 +1,11 @@
+services:
+  app:
+    build: 
+      context: .
+    tty: true
+    stdin_open: true
+    command: bash
+    volumes:
+      - ./projeto_robotica:/app/projeto_robotica
+      - ./outputs:/app/outputs
+

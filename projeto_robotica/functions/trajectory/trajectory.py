@@ -3,6 +3,7 @@ import numpy as np
 from functions.trajectory.motor import MotorLimits
 from functions.two_dim import ik
 import matplotlib.pyplot as plt
+import os
 
 class TrajectoryPoint:
     """Ponto da trajetória"""
@@ -72,7 +73,7 @@ class TrapezoidalTrajectoryPlanner:
         traj1 = self._calculate_synchronized_profile(distance1, sync_time, self.motor1_limits, time_step)
         traj2 = self._calculate_synchronized_profile(distance2, sync_time, self.motor2_limits, time_step)
 
-        debug = True
+        debug = os.getenv("DEBUG", "False") == "True"
 
         if debug:
             print(f"Tempo total sincronizado: {sync_time:.3f}s")
