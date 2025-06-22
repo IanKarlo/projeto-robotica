@@ -1,16 +1,36 @@
-FROM python:3.8-slim-bullseye
+FROM python:3.7.17-slim-bullseye
 
-RUN mkdir /app
-COPY ./requirements.txt /app/requirements.txt
-COPY ./app/pyproject.toml /app/pyproject.toml
+# Instale tudo que o Poetry precisa
+RUN apt-get update -y && apt-get install -y \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    wget \
+    curl \
+    llvm \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    liblzma-dev \
+    python3-venv \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update -y && apt-get install -y vim git make gcc g++
+RUN python3 -m venv .virenv
+RUN .virenv/bin/pip install -U pip setuptools
+RUN .virenv/bin/pip install poetry
+RUN ln -s /.virenv/bin/poetry /usr/local/bin/poetry
 
-# . means /app
-RUN pip install -r /app/requirements.txt
-
-COPY --chmod=755 ./entry.sh /app/entry.sh
 WORKDIR /app
 
+# Copie antes para aproveitar o cache
+COPY pyproject.toml poetry.lock poetry.toml .
+RUN poetry install --no-interaction --no-ansi
 
 
+COPY . .

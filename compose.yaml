@@ -2,8 +2,10 @@ services:
   app:
     build: 
       context: .
-    stdin_open: true
     tty: true
+    stdin_open: true
+    command: bash
     volumes:
-      - ./app:/app
+      - ./projeto_robotica:/app/projeto_robotica
+      - ./outputs:/app/outputs
 

@@ -79,11 +79,13 @@ class SimulationDriver:
         
         q_array = np.array(trajectory)
         
+        file_name = f"outputs/robot_trajectory_{time_step}.gif"
+
         # Plotar a trajetória do robô
         robot.plot(
             q_array,
             dt=time_step,
             backend="pyplot",
-            movie="robot_trajectory.gif",
+            movie=file_name,
             block=False
         )

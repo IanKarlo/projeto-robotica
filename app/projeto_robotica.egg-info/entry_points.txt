@@ -1,4 +1,0 @@
-[console_scripts]
-first_question = projeto_robotica.tasks:test_first_question
-second_question = projeto_robotica.tasks:test_second_question
-start = projeto_robotica.tasks:start

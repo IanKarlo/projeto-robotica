@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "projeto_robotica"
+version = "0.1.0"
+description = "Repositório para guardar os códigos do projeto de robótica (braço mecanico)"
+authors = ["IanKarlo <iankarlots@gmail.com>","EGmux <egb2@cin.ufpe.br>","Ekistoclecio <ehdl@cin.ufpe.br>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.7.17"
+numpy = "1.21.6"
+roboticstoolbox-python = "^1.1.1"
+matplotlib = "3.5.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry.scripts]
+first_question = "projeto_robotica.tasks:test_first_question"
+second_question = "projeto_robotica.tasks:test_second_question"
+start = "projeto_robotica.tasks:start"
+
