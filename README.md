@@ -121,23 +121,24 @@ In this section, we address the implementation of a planar robotic arm with two 
 The tests for the functions `fx` and `ik` are implemented in `second_question.py` and validate the functionality of these kinematic calculations. 
 
 For the `fx` function, the following test cases are used:
-- \( \theta_1 = 0, \theta_2 = \frac{\pi}{2} \)
-- \( \theta_1 = \frac{\pi}{2}, \theta_2 = -\frac{\pi}{2} \)
-- \( \theta_1 = \frac{\pi}{2}, \theta_2 = \frac{\pi}{2} \)
-- \( \theta_1 = -\pi, \theta_2 = \pi \)
+- (θ₁ = 0, θ₂ = π/2)  
+- (θ₁ = π/2, θ₂ = −π/2)  
+- (θ₁ = π/2, θ₂ = π/2)  
+- (θ₁ = −π, θ₂ = π)
 
 These cases check the end effector's position and orientation for various joint angles.
 
 For the `ik` function, the following test points are evaluated:
-- \( x = 1, y = 1 \)
-- \( x = 1, y = -1 \)
-- \( x = -1, y = 1 \)
-- \( x = -1, y = -1 \)
-- \( x = 2, y = 1 \)
-- \( x = 2, y = 0 \)
-- \( x = 0, y = 2 \)
-- \( x = -2, y = 0 \)
-- \( x = -2, y = -2 \)
+
+- ( x = 1, y = 1 )
+- ( x = 1, y = -1 )
+- ( x = -1, y = 1 )
+- ( x = -1, y = -1 )
+- ( x = 2, y = 1 )
+- ( x = 2, y = 0 )
+- ( x = 0, y = 2 )
+- ( x = -2, y = 0 )
+- ( x = -2, y = -2 )
 
 These tests ensure that the inverse kinematics function can accurately compute the necessary joint angles to reach specified coordinates in the workspace.
 
