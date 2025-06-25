@@ -160,7 +160,7 @@ def traj_joint(theta1_start: float, theta2_start: float, theta1_end: float, thet
         q_values.append([trajectory1[i].position, trajectory2[i].position])
     return q_values
 
-def traj_eucl(theta1_start: float, theta2_start: float, x_end: float, y_end: float, planner: TrapezoidalTrajectoryPlanner, time_step: float = 0.01):
+def traj_cart(theta1_start: float, theta2_start: float, x_end: float, y_end: float, planner: TrapezoidalTrajectoryPlanner, time_step: float = 0.01):
     target_angles1, target_angles2 = ik(x_end, y_end)
     trajectories1 = traj_joint(theta1_start, theta2_start, target_angles1[0], target_angles1[1], planner, time_step)
     trajectories2 = traj_joint(theta1_start, theta2_start, target_angles2[0], target_angles2[1], planner, time_step)
@@ -217,3 +217,340 @@ def plot_trajectories(traj1: List[TrajectoryPoint], traj2: List[TrajectoryPoint]
     
     plt.tight_layout()
     plt.show()
+
+
+def traj_eucl(x_start: float, y_start: float, x_end: float, y_end: float, 
+                  theta1_start: float, theta2_start: float, 
+                  planner: TrapezoidalTrajectoryPlanner, time_step: float = 0.01,
+                  max_velocity: float = 0.5, max_acceleration: float = 0.5):
+    
+    cartesian_distance = np.sqrt((x_end - x_start)**2 + (y_end - y_start)**2)
+    
+
+    dummy_limits = MotorLimits(max_velocity=max_velocity, max_acceleration=max_acceleration)
+    t_accel, t_cruise, t_decel, total_time, v_cruise = planner.calculate_single_motor_trajectory(
+        cartesian_distance, dummy_limits)
+    
+    debug = os.getenv("DEBUG", "False") == "True"
+    if debug:
+        print(f"Cartesian trajectory from ({x_start}, {y_start}) to ({x_end}, {y_end})")
+        print(f"Cartesian distance: {cartesian_distance:.3f}")
+        print(f"Total time: {total_time:.3f}s")
+        print(f"Acceleration time: {t_accel:.3f}s, Cruise time: {t_cruise:.3f}s, Deceleration time: {t_decel:.3f}s")
+        print(f"Cruise velocity: {v_cruise:.3f} units/s")
+        print(f"Maximum acceleration: {dummy_limits.max_acceleration:.3f} units/s²")
+    
+    time_points = np.arange(0, total_time + time_step, time_step)
+    
+    trajectory_points = []
+    cartesian_points = []
+    cartesian_velocities = []
+    
+    dx = x_end - x_start
+    dy = y_end - y_start
+    
+    magnitude = np.sqrt(dx**2 + dy**2)
+    if magnitude > 0:
+        unit_dx = dx / magnitude
+        unit_dy = dy / magnitude
+    else:
+        unit_dx = 0
+        unit_dy = 0
+    
+    current_theta1 = theta1_start
+    current_theta2 = theta2_start
+    
+    for t in time_points:
+        if t <= t_accel:
+            distance = 0.5 * dummy_limits.max_acceleration * t**2
+            velocity = dummy_limits.max_acceleration * t
+            acceleration = dummy_limits.max_acceleration
+        elif t <= (t_accel + t_cruise):
+            distance = 0.5 * dummy_limits.max_acceleration * t_accel**2 + v_cruise * (t - t_accel)
+            velocity = v_cruise
+            acceleration = 0
+        else:
+            t_dec = t - t_accel - t_cruise
+            distance = (0.5 * dummy_limits.max_acceleration * t_accel**2 + 
+                       v_cruise * t_cruise + 
+                       v_cruise * t_dec - 0.5 * dummy_limits.max_acceleration * t_dec**2)
+            velocity = v_cruise - dummy_limits.max_acceleration * t_dec
+            acceleration = -dummy_limits.max_acceleration
+        
+        ratio = distance / cartesian_distance if cartesian_distance > 0 else 0
+        x = x_start + ratio * dx
+        y = y_start + ratio * dy
+        
+        cartesian_points.append((x, y))
+        cartesian_velocities.append((velocity * unit_dx, velocity * unit_dy))
+        
+        try:
+            angles1, angles2 = ik(x, y)
+            
+            dist1 = sum(abs(np.array(angles1) - np.array([current_theta1, current_theta2])))
+            dist2 = sum(abs(np.array(angles2) - np.array([current_theta1, current_theta2])))
+            
+            if dist1 <= dist2:
+                trajectory_points.append(list(angles1))
+                chosen_angles = angles1
+            else:
+                trajectory_points.append(list(angles2))
+                chosen_angles = angles2
+                
+            current_theta1, current_theta2 = chosen_angles
+            
+        except ValueError as e:
+            print(f"Warning: Point ({x}, {y}) is unreachable: {e}")
+            continue
+    
+    if debug and trajectory_points:
+        theta1_traj = [point[0] for point in trajectory_points]
+        theta2_traj = [point[1] for point in trajectory_points]
+        
+        traj1 = []
+        traj2 = []
+        for i, t in enumerate(time_points[:len(trajectory_points)]):
+            traj1.append(TrajectoryPoint(t, theta1_traj[i], 0.0, 0.0))
+            traj2.append(TrajectoryPoint(t, theta2_traj[i], 0.0, 0.0))
+        
+        filename_prefix = f"cartesian_{x_start:.1f}_{y_start:.1f}_to_{x_end:.1f}_{y_end:.1f}"
+        
+        times = time_points[:len(cartesian_points)]
+        x_positions = [p[0] for p in cartesian_points]
+        y_positions = [p[1] for p in cartesian_points]
+        x_velocities = [v[0] for v in cartesian_velocities]
+        y_velocities = [v[1] for v in cartesian_velocities]
+        
+        x_accelerations = []
+        y_accelerations = []
+        for i in range(len(times)):
+            if i == 0:
+                x_acc = 0
+                y_acc = 0
+            else:
+                dt = times[i] - times[i-1]
+                if dt > 0:
+                    x_acc = (x_velocities[i] - x_velocities[i-1]) / dt
+                    y_acc = (y_velocities[i] - y_velocities[i-1]) / dt
+                else:
+                    x_acc = 0
+                    y_acc = 0
+            x_accelerations.append(x_acc)
+            y_accelerations.append(y_acc)
+        
+        
+        plot_cartesian_trajectory(trajectory_points, x_start, y_start)
+        
+        plot_cartesian_trajectories(times, x_positions, y_positions, 
+                                x_velocities, y_velocities, 
+                                x_accelerations, y_accelerations)
+        
+        save_trajectory_plots(traj1, traj2, filename_prefix)
+        save_cartesian_trajectory(trajectory_points, x_start, y_start, filename_prefix)
+        save_cartesian_trajectories(times, x_positions, y_positions, 
+                                x_velocities, y_velocities, 
+                                x_accelerations, y_accelerations,
+                                filename_prefix)
+    
+    # Return the trajectory and the final angles
+    return trajectory_points, (current_theta1, current_theta2)
+
+def plot_cartesian_trajectory(trajectory_points, x_start, y_start):
+    """
+    Plot the Cartesian trajectory
+    """
+    from functions.two_dim import fk
+    
+    # Extract x, y coordinates from joint angles
+    x_coords = []
+    y_coords = []
+    
+    for point in trajectory_points:
+        x, y, _ = fk(point[0], point[1])
+        x_coords.append(x)
+        y_coords.append(y)
+    
+    plt.figure(figsize=(8, 8))
+    plt.plot(x_coords, y_coords, 'b-', linewidth=2)
+    plt.plot(x_start, y_start, 'go', markersize=10)  # Start point
+    plt.plot(x_coords[-1], y_coords[-1], 'ro', markersize=10)  # End point
+    plt.grid(True)
+    plt.axis('equal')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Cartesian Trajectory')
+    plt.show()
+
+def save_trajectory_plots(traj1: List[TrajectoryPoint], traj2: List[TrajectoryPoint], filename_prefix: str = "trajectory"):
+    """Saves the trajectory plots to files instead of displaying them"""
+    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
+    
+    times1 = [p.time for p in traj1]
+    positions1 = [p.position for p in traj1]
+    velocities1 = [p.velocity for p in traj1]
+    accelerations1 = [p.acceleration for p in traj1]
+    
+    times2 = [p.time for p in traj2]
+    positions2 = [p.position for p in traj2]
+    velocities2 = [p.velocity for p in traj2]
+    accelerations2 = [p.acceleration for p in traj2]
+    
+    # Posição
+    axes[0].plot(times1, positions1, 'b-', label='Motor 1', linewidth=2)
+    axes[0].plot(times2, positions2, 'r--', label='Motor 2', linewidth=2)
+    axes[0].set_ylabel('Posição')
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+    axes[0].set_title('Trajetórias Sincronizadas')
+    
+    # Velocidade
+    axes[1].plot(times1, velocities1, 'b-', label='Motor 1', linewidth=2)
+    axes[1].plot(times2, velocities2, 'r--', label='Motor 2', linewidth=2)
+    axes[1].set_ylabel('Velocidade')
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    
+    # Aceleração
+    axes[2].plot(times1, accelerations1, 'b-', label='Motor 1', linewidth=2)
+    axes[2].plot(times2, accelerations2, 'r--', label='Motor 2', linewidth=2)
+    axes[2].set_ylabel('Aceleração')
+    axes[2].set_xlabel('Tempo (s)')
+    axes[2].legend()
+    axes[2].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    # Ensure the outputs directory exists
+    os.makedirs("outputs", exist_ok=True)
+    
+    # Save the figure
+    plt.savefig(f"outputs/{filename_prefix}_joint_space.png")
+    plt.close(fig)
+
+def save_cartesian_trajectory(trajectory_points, x_start, y_start, filename_prefix: str = "trajectory"):
+    """
+    Save the Cartesian trajectory plot to a file
+    """
+    from functions.two_dim import fk
+    
+    # Extract x, y coordinates from joint angles
+    x_coords = []
+    y_coords = []
+    
+    for point in trajectory_points:
+        x, y, _ = fk(point[0], point[1])
+        x_coords.append(x)
+        y_coords.append(y)
+    
+    plt.figure(figsize=(8, 8))
+    plt.plot(x_coords, y_coords, 'b-', linewidth=2)
+    plt.plot(x_start, y_start, 'go', markersize=10)  # Start point
+    plt.plot(x_coords[-1], y_coords[-1], 'ro', markersize=10)  # End point
+    plt.grid(True)
+    plt.axis('equal')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Cartesian Trajectory')
+    
+    # Ensure the outputs directory exists
+    os.makedirs("outputs", exist_ok=True)
+    
+    # Save the figure
+    plt.savefig(f"outputs/{filename_prefix}_cartesian_space.png")
+    plt.close()
+
+def plot_cartesian_trajectories(times: List[float], 
+                               x_positions: List[float], y_positions: List[float],
+                               x_velocities: List[float], y_velocities: List[float],
+                               x_accelerations: List[float], y_accelerations: List[float]):
+    """
+    Plot the trajectories of X and Y coordinates in Cartesian space.
+    
+    Args:
+        times: List of time points
+        x_positions: List of X positions
+        y_positions: List of Y positions
+        x_velocities: List of X velocities
+        y_velocities: List of Y velocities
+        x_accelerations: List of X accelerations
+        y_accelerations: List of Y accelerations
+    """
+    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
+    
+    # Position
+    axes[0].plot(times, x_positions, 'b-', label='X Position', linewidth=2)
+    axes[0].plot(times, y_positions, 'r--', label='Y Position', linewidth=2)
+    axes[0].set_ylabel('Position')
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+    axes[0].set_title('Cartesian Trajectories')
+    
+    # Velocity
+    axes[1].plot(times, x_velocities, 'b-', label='X Velocity', linewidth=2)
+    axes[1].plot(times, y_velocities, 'r--', label='Y Velocity', linewidth=2)
+    axes[1].set_ylabel('Velocity')
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    
+    # Acceleration
+    axes[2].plot(times, x_accelerations, 'b-', label='X Acceleration', linewidth=2)
+    axes[2].plot(times, y_accelerations, 'r--', label='Y Acceleration', linewidth=2)
+    axes[2].set_ylabel('Acceleration')
+    axes[2].set_xlabel('Time (s)')
+    axes[2].legend()
+    axes[2].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+
+def save_cartesian_trajectories(times: List[float], 
+                               x_positions: List[float], y_positions: List[float],
+                               x_velocities: List[float], y_velocities: List[float],
+                               x_accelerations: List[float], y_accelerations: List[float],
+                               filename_prefix: str = "cartesian_trajectory"):
+    """
+    Save the trajectories of X and Y coordinates in Cartesian space to a file.
+    
+    Args:
+        times: List of time points
+        x_positions: List of X positions
+        y_positions: List of Y positions
+        x_velocities: List of X velocities
+        y_velocities: List of Y velocities
+        x_accelerations: List of X accelerations
+        y_accelerations: List of Y accelerations
+        filename_prefix: Prefix for the output filename
+    """
+    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
+    
+    # Position
+    axes[0].plot(times, x_positions, 'b-', label='X Position', linewidth=2)
+    axes[0].plot(times, y_positions, 'r--', label='Y Position', linewidth=2)
+    axes[0].set_ylabel('Position')
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+    axes[0].set_title('Cartesian Trajectories')
+    
+    # Velocity
+    axes[1].plot(times, x_velocities, 'b-', label='X Velocity', linewidth=2)
+    axes[1].plot(times, y_velocities, 'r--', label='Y Velocity', linewidth=2)
+    axes[1].set_ylabel('Velocity')
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    
+    # Acceleration
+    axes[2].plot(times, x_accelerations, 'b-', label='X Acceleration', linewidth=2)
+    axes[2].plot(times, y_accelerations, 'r--', label='Y Acceleration', linewidth=2)
+    axes[2].set_ylabel('Acceleration')
+    axes[2].set_xlabel('Time (s)')
+    axes[2].legend()
+    axes[2].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    # Ensure the outputs directory exists
+    os.makedirs("outputs", exist_ok=True)
+    
+    # Save the figure
+    plt.savefig(f"outputs/{filename_prefix}_profiles.png")
+    plt.close(fig)

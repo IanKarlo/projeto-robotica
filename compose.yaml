@@ -1,7 +1,6 @@
 services:
   app:
-    build: 
-      context: .
+    image: iankts/projeto-robotica:latest
     tty: true
     stdin_open: true
     command: bash

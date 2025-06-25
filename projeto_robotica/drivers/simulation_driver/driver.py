@@ -1,6 +1,6 @@
 import numpy as np
 from functions.two_dim import fk
-from functions.trajectory.trajectory import TrapezoidalTrajectoryPlanner, traj_joint, traj_eucl
+from functions.trajectory.trajectory import TrapezoidalTrajectoryPlanner, traj_joint, traj_cart, traj_eucl
 from functions.trajectory.motor import MotorLimits
 from roboticstoolbox import DHRobot, RevoluteDH
 from typing import List, Tuple
@@ -36,8 +36,21 @@ class SimulationDriver:
         new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
         self.__robot_simulation(new_trajectory)
 
-    def move_eucl(self, x: float, y: float, time_step: float = 0.01):
-        trajectory, angles = traj_eucl(self.position.theta1, self.position.theta2, x, y, self.planner, time_step)
+    def move_cart(self, x: float, y: float, time_step: float = 0.01):
+        trajectory, angles = traj_cart(self.position.theta1, self.position.theta2, x, y, self.planner, time_step)
+        theta1_start, theta2_start = self.position.theta1, self.position.theta2
+        self.update_postion(angles[0], angles[1])
+        new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
+        self.__robot_simulation(new_trajectory)
+
+    def move_eucl(self, x: float, y: float, time_step: float = 0.01, 
+                  max_velocity: float = 3, max_acceleration: float = 15):
+        trajectory, angles = traj_eucl(
+            self.position.x, self.position.y, x, y, 
+            self.position.theta1, self.position.theta2, 
+            self.planner, time_step,
+            max_velocity=max_velocity, max_acceleration=max_acceleration
+        )
         theta1_start, theta2_start = self.position.theta1, self.position.theta2
         self.update_postion(angles[0], angles[1])
         new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
@@ -46,8 +59,26 @@ class SimulationDriver:
     def move_eucl_continuous(self, points: List[Tuple[float, float]], time_step: float = 0.01):
         theta1_start, theta2_start = self.position.theta1, self.position.theta2
         final_trajectory = []
+        x_start, y_start = self.position.x, self.position.y
         for point in points:
-            trajectory, angles = traj_eucl(theta1_start, theta2_start, point[0], point[1], self.planner, time_step)
+            trajectory, angles = traj_eucl(
+                x_start, y_start, point[0], point[1], 
+                theta1_start, theta2_start, 
+                self.planner, time_step,
+                max_velocity=3, max_acceleration=15
+            )
+            new_trajectory = [[x, y] for x, y in trajectory]
+            final_trajectory = [*final_trajectory, *new_trajectory]
+            theta1_start, theta2_start = angles[0], angles[1]
+            x_start, y_start = point[0], point[1]
+        self.update_postion(theta1_start, theta2_start)
+        self.__robot_simulation(final_trajectory)
+
+    def move_cart_continuous(self, points: List[Tuple[float, float]], time_step: float = 0.01):
+        theta1_start, theta2_start = self.position.theta1, self.position.theta2
+        final_trajectory = []
+        for point in points:
+            trajectory, angles = traj_cart(theta1_start, theta2_start, point[0], point[1], self.planner, time_step)
             new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
             final_trajectory = [*final_trajectory, *new_trajectory]
             theta1_start, theta2_start = angles[0], angles[1]

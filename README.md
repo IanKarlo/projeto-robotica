@@ -144,3 +144,37 @@ These tests ensure that the inverse kinematics function can accurately compute t
 
 These functions are implemented in the file `projeto_robotica/functions/two_dim.py` and are fundamental for the simulation and control of the robotic arm.
 
+### Third Part
+In this section, we discuss the trajectory planning functions implemented in `trajectory.py`. These functions are essential for controlling the robotic arm's movement through specified joint angles.
+
+1. **Function `traj_joint(theta1_start, theta2_start, theta1_end, theta2_end, planner, time_step)`**:
+   - **Input**: 
+     - `theta1_start`: Initial angle of the first joint (rad).
+     - `theta2_start`: Initial angle of the second joint (rad).
+     - `theta1_end`: Final angle of the first joint (rad).
+     - `theta2_end`: Final angle of the second joint (rad).
+     - `planner`: An instance of `TrapezoidalTrajectoryPlanner` used for trajectory planning.
+     - `time_step`: Time increment for trajectory calculation (s).
+   - **Output**: 
+     - A list of joint angle values representing the trajectory for both joints.
+
+   This function calculates the trajectory between the initial and final joint angles using a trapezoidal profile, ensuring smooth transitions while adhering to the defined limits of velocity \( V_{max} \) and acceleration \( A_{max} \).
+
+2. **Function `traj_eucl(theta1_start, theta2_start, x_end, y_end, planner, time_step)`**:
+   - **Input**: 
+     - `theta1_start`: Initial angle of the first joint (rad).
+     - `theta2_start`: Initial angle of the second joint (rad).
+     - `x_end`: Final x-coordinate of the end effector (m).
+     - `y_end`: Final y-coordinate of the end effector (m).
+     - `planner`: An instance of `TrapezoidalTrajectoryPlanner` used for trajectory planning.
+     - `time_step`: Time increment for trajectory calculation (s).
+   - **Output**: 
+     - A list of joint angle values representing the trajectory for both joints.
+
+   This function computes the joint angles necessary to reach a specified end effector position using inverse kinematics, ensuring that the original position of the arm is accurately considered for the calculations.
+
+   In this function, it was necessary to adjust some parameters to ensure that the original position of the arm is accurately considered. This adjustment is crucial for the function to compute the correct joint angles needed to reach the desired end effector position.
+
+These functions are vital for the effective simulation and control of the robotic arm, allowing for precise movement and trajectory planning.
+
+
