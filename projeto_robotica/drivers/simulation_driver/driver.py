@@ -31,17 +31,13 @@ class SimulationDriver:
 
     def move_angular(self, theta1: float, theta2: float, time_step: float = 0.01):
         trajectory = traj_joint(self.position.theta1, self.position.theta2, theta1, theta2, self.planner, time_step)
-        theta1_start, theta2_start = self.position.theta1, self.position.theta2
         self.update_postion(theta1, theta2)
-        new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
-        self.__robot_simulation(new_trajectory)
+        self.__robot_simulation(trajectory)
 
     def move_cart(self, x: float, y: float, time_step: float = 0.01):
         trajectory, angles = traj_cart(self.position.theta1, self.position.theta2, x, y, self.planner, time_step)
-        theta1_start, theta2_start = self.position.theta1, self.position.theta2
         self.update_postion(angles[0], angles[1])
-        new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
-        self.__robot_simulation(new_trajectory)
+        self.__robot_simulation(trajectory)
 
     def move_eucl(self, x: float, y: float, time_step: float = 0.01, 
                   max_velocity: float = 3, max_acceleration: float = 15):
@@ -53,7 +49,7 @@ class SimulationDriver:
         )
         theta1_start, theta2_start = self.position.theta1, self.position.theta2
         self.update_postion(angles[0], angles[1])
-        new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
+        new_trajectory = [[x, y] for x, y in trajectory]
         self.__robot_simulation(new_trajectory)
 
     def move_eucl_continuous(self, points: List[Tuple[float, float]], time_step: float = 0.01):
@@ -72,15 +68,14 @@ class SimulationDriver:
             theta1_start, theta2_start = angles[0], angles[1]
             x_start, y_start = point[0], point[1]
         self.update_postion(theta1_start, theta2_start)
-        self.__robot_simulation(final_trajectory)
+        self.__robot_simulation(final_trajectory, type="eucl")
 
     def move_cart_continuous(self, points: List[Tuple[float, float]], time_step: float = 0.01):
         theta1_start, theta2_start = self.position.theta1, self.position.theta2
         final_trajectory = []
         for point in points:
             trajectory, angles = traj_cart(theta1_start, theta2_start, point[0], point[1], self.planner, time_step)
-            new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
-            final_trajectory = [*final_trajectory, *new_trajectory]
+            final_trajectory = [*final_trajectory, *trajectory]
             theta1_start, theta2_start = angles[0], angles[1]
         self.update_postion(theta1_start, theta2_start)
         self.__robot_simulation(final_trajectory)
@@ -90,11 +85,10 @@ class SimulationDriver:
         final_trajectory = []
         for point in points:
             trajectory = traj_joint(theta1_start, theta2_start, point[0], point[1], self.planner, time_step)
-            new_trajectory = [[x+theta1_start, y+theta2_start] for x, y in trajectory]
-            final_trajectory = [*final_trajectory, *new_trajectory]
+            final_trajectory = [*final_trajectory, *trajectory]
             theta1_start, theta2_start = point[0], point[1]
         self.update_postion(theta1_start, theta2_start)
-        self.__robot_simulation(final_trajectory)
+        self.__robot_simulation(final_trajectory, type="joint")
         
     
     def update_postion(self, theta1: float, theta2: float):
@@ -102,7 +96,7 @@ class SimulationDriver:
         self.position.update_position(x, y, theta1, theta2)
 
 
-    def __robot_simulation(self, trajectory, time_step: float = 0.01):
+    def __robot_simulation(self, trajectory, time_step: float = 0.01, type: str = "cartesian"):
         # Criar um robô planar 2 DOF
         link1 = RevoluteDH(a=1.0, alpha=0)
         link2 = RevoluteDH(a=1.0, alpha=0)
@@ -110,7 +104,7 @@ class SimulationDriver:
         
         q_array = np.array(trajectory)
         
-        file_name = f"outputs/robot_trajectory_{time_step}.gif"
+        file_name = f"outputs/robot_trajectory_{time_step}_{type}.gif"
 
         # Plotar a trajetória do robô
         robot.plot(

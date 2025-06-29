@@ -72,18 +72,6 @@ class TrapezoidalTrajectoryPlanner:
         # Recalcula os perfis para o tempo sincronizado
         traj1 = self._calculate_synchronized_profile(distance1, sync_time, self.motor1_limits, time_step)
         traj2 = self._calculate_synchronized_profile(distance2, sync_time, self.motor2_limits, time_step)
-
-        debug = os.getenv("DEBUG", "False") == "True"
-
-        if debug:
-            print(f"Tempo total sincronizado: {sync_time:.3f}s")
-            print(f"Motor 1 - Distância: {distance1}, Tempo original: {total_time1:.3f}s")
-            print(f"Motor 2 - Distância: {distance2}, Tempo original: {total_time2:.3f}s")
-            plot_trajectories(traj1, traj2)
-        
-        # print(f"Tempo total sincronizado: {sync_time:.3f}s")
-        # print(f"Motor 1 - Distância: {distance1}, Tempo original: {total_time1:.3f}s")
-        # print(f"Motor 2 - Distância: {distance2}, Tempo original: {total_time2:.3f}s")
         
         return traj1, traj2
     
@@ -155,9 +143,14 @@ class TrapezoidalTrajectoryPlanner:
 def traj_joint(theta1_start: float, theta2_start: float, theta1_end: float, theta2_end: float, planner: TrapezoidalTrajectoryPlanner, time_step: float = 0.01):
     distance, distance2 = calculate_distances(theta1_start, theta1_end, theta2_start, theta2_end)
     trajectory1, trajectory2 = planner.plan_synchronized_trajectory(distance, distance2, time_step)
+
+    filename_prefix = f"joint_{np.degrees(theta1_start):.1f}_{np.degrees(theta2_start):.1f}_to_{np.degrees(theta1_end):.1f}_{np.degrees(theta2_end):.1f}"
+
+    save_trajectory_plots(trajectory1, trajectory2, filename_prefix)
+
     q_values = []
     for i in range(len(trajectory1)):
-        q_values.append([trajectory1[i].position, trajectory2[i].position])
+        q_values.append([trajectory1[i].position + theta1_start, trajectory2[i].position + theta2_start])
     return q_values
 
 def traj_cart(theta1_start: float, theta2_start: float, x_end: float, y_end: float, planner: TrapezoidalTrajectoryPlanner, time_step: float = 0.01):
@@ -177,46 +170,6 @@ def calculate_distances(theta1_start: float, theta1_end: float, theta2_start: fl
     distance1 = ((theta1_end - theta1_start + np.pi) % (2 * np.pi)) - np.pi
     distance2 = ((theta2_end - theta2_start + np.pi) % (2 * np.pi)) - np.pi
     return distance1, distance2
-
-def plot_trajectories(traj1: List[TrajectoryPoint], traj2: List[TrajectoryPoint]):
-    """Plota as trajetórias dos dois motores"""
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    
-    times1 = [p.time for p in traj1]
-    positions1 = [p.position for p in traj1]
-    velocities1 = [p.velocity for p in traj1]
-    accelerations1 = [p.acceleration for p in traj1]
-    
-    times2 = [p.time for p in traj2]
-    positions2 = [p.position for p in traj2]
-    velocities2 = [p.velocity for p in traj2]
-    accelerations2 = [p.acceleration for p in traj2]
-    
-    # Posição
-    axes[0].plot(times1, positions1, 'b-', label='Motor 1', linewidth=2)
-    axes[0].plot(times2, positions2, 'r--', label='Motor 2', linewidth=2)
-    axes[0].set_ylabel('Posição')
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
-    axes[0].set_title('Trajetórias Sincronizadas')
-    
-    # Velocidade
-    axes[1].plot(times1, velocities1, 'b-', label='Motor 1', linewidth=2)
-    axes[1].plot(times2, velocities2, 'r--', label='Motor 2', linewidth=2)
-    axes[1].set_ylabel('Velocidade')
-    axes[1].legend()
-    axes[1].grid(True, alpha=0.3)
-    
-    # Aceleração
-    axes[2].plot(times1, accelerations1, 'b-', label='Motor 1', linewidth=2)
-    axes[2].plot(times2, accelerations2, 'r--', label='Motor 2', linewidth=2)
-    axes[2].set_ylabel('Aceleração')
-    axes[2].set_xlabel('Tempo (s)')
-    axes[2].legend()
-    axes[2].grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.show()
 
 
 def traj_eucl(x_start: float, y_start: float, x_end: float, y_end: float, 
@@ -303,7 +256,7 @@ def traj_eucl(x_start: float, y_start: float, x_end: float, y_end: float,
             print(f"Warning: Point ({x}, {y}) is unreachable: {e}")
             continue
     
-    if debug and trajectory_points:
+    if trajectory_points:
         theta1_traj = [point[0] for point in trajectory_points]
         theta2_traj = [point[1] for point in trajectory_points]
         
@@ -339,12 +292,6 @@ def traj_eucl(x_start: float, y_start: float, x_end: float, y_end: float,
             y_accelerations.append(y_acc)
         
         
-        plot_cartesian_trajectory(trajectory_points, x_start, y_start)
-        
-        plot_cartesian_trajectories(times, x_positions, y_positions, 
-                                x_velocities, y_velocities, 
-                                x_accelerations, y_accelerations)
-        
         save_trajectory_plots(traj1, traj2, filename_prefix)
         save_cartesian_trajectory(trajectory_points, x_start, y_start, filename_prefix)
         save_cartesian_trajectories(times, x_positions, y_positions, 
@@ -355,31 +302,6 @@ def traj_eucl(x_start: float, y_start: float, x_end: float, y_end: float,
     # Return the trajectory and the final angles
     return trajectory_points, (current_theta1, current_theta2)
 
-def plot_cartesian_trajectory(trajectory_points, x_start, y_start):
-    """
-    Plot the Cartesian trajectory
-    """
-    from functions.two_dim import fk
-    
-    # Extract x, y coordinates from joint angles
-    x_coords = []
-    y_coords = []
-    
-    for point in trajectory_points:
-        x, y, _ = fk(point[0], point[1])
-        x_coords.append(x)
-        y_coords.append(y)
-    
-    plt.figure(figsize=(8, 8))
-    plt.plot(x_coords, y_coords, 'b-', linewidth=2)
-    plt.plot(x_start, y_start, 'go', markersize=10)  # Start point
-    plt.plot(x_coords[-1], y_coords[-1], 'ro', markersize=10)  # End point
-    plt.grid(True)
-    plt.axis('equal')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Cartesian Trajectory')
-    plt.show()
 
 def save_trajectory_plots(traj1: List[TrajectoryPoint], traj2: List[TrajectoryPoint], filename_prefix: str = "trajectory"):
     """Saves the trajectory plots to files instead of displaying them"""
@@ -458,50 +380,6 @@ def save_cartesian_trajectory(trajectory_points, x_start, y_start, filename_pref
     # Save the figure
     plt.savefig(f"outputs/{filename_prefix}_cartesian_space.png")
     plt.close()
-
-def plot_cartesian_trajectories(times: List[float], 
-                               x_positions: List[float], y_positions: List[float],
-                               x_velocities: List[float], y_velocities: List[float],
-                               x_accelerations: List[float], y_accelerations: List[float]):
-    """
-    Plot the trajectories of X and Y coordinates in Cartesian space.
-    
-    Args:
-        times: List of time points
-        x_positions: List of X positions
-        y_positions: List of Y positions
-        x_velocities: List of X velocities
-        y_velocities: List of Y velocities
-        x_accelerations: List of X accelerations
-        y_accelerations: List of Y accelerations
-    """
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    
-    # Position
-    axes[0].plot(times, x_positions, 'b-', label='X Position', linewidth=2)
-    axes[0].plot(times, y_positions, 'r--', label='Y Position', linewidth=2)
-    axes[0].set_ylabel('Position')
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
-    axes[0].set_title('Cartesian Trajectories')
-    
-    # Velocity
-    axes[1].plot(times, x_velocities, 'b-', label='X Velocity', linewidth=2)
-    axes[1].plot(times, y_velocities, 'r--', label='Y Velocity', linewidth=2)
-    axes[1].set_ylabel('Velocity')
-    axes[1].legend()
-    axes[1].grid(True, alpha=0.3)
-    
-    # Acceleration
-    axes[2].plot(times, x_accelerations, 'b-', label='X Acceleration', linewidth=2)
-    axes[2].plot(times, y_accelerations, 'r--', label='Y Acceleration', linewidth=2)
-    axes[2].set_ylabel('Acceleration')
-    axes[2].set_xlabel('Time (s)')
-    axes[2].legend()
-    axes[2].grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.show()
 
 def save_cartesian_trajectories(times: List[float], 
                                x_positions: List[float], y_positions: List[float],
