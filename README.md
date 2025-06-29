@@ -64,6 +64,10 @@ poetry run second_question
 poetry run start
 ```
 
+> Obs: If you dont want to use poetry, just run `python projeto_robotica/main.py`
+
+When runnning the main flow, you will get the graphs images of each movement and the gif of the simulation in the folder `/outputs`
+
 ## Authors
 
 - Ian Karlo (iankarlots@gmail.com)
@@ -145,36 +149,54 @@ These tests ensure that the inverse kinematics function can accurately compute t
 These functions are implemented in the file `projeto_robotica/functions/two_dim.py` and are fundamental for the simulation and control of the robotic arm.
 
 ### Third Part
-In this section, we discuss the trajectory planning functions implemented in `trajectory.py`. These functions are essential for controlling the robotic arm's movement through specified joint angles.
+In this section, we discuss the trajectory planning functions implemented in `trajectory.py`. These functions enable precise control of the robotic arm's movement using two different approaches: joint space trajectory planning and Euclidean (Cartesian) space trajectory planning.
 
 1. **Function `traj_joint(theta1_start, theta2_start, theta1_end, theta2_end, planner, time_step)`**:
    - **Input**: 
-     - `theta1_start`: Initial angle of the first joint (rad).
-     - `theta2_start`: Initial angle of the second joint (rad).
-     - `theta1_end`: Final angle of the first joint (rad).
-     - `theta2_end`: Final angle of the second joint (rad).
-     - `planner`: An instance of `TrapezoidalTrajectoryPlanner` used for trajectory planning.
-     - `time_step`: Time increment for trajectory calculation (s).
+     - `theta1_start`, `theta2_start`: Initial angles of the joints (rad)
+     - `theta1_end`, `theta2_end`: Target angles of the joints (rad)
+     - `planner`: An instance of `TrapezoidalTrajectoryPlanner`
+     - `time_step`: Time increment for trajectory calculation (s)
    - **Output**: 
-     - A list of joint angle values representing the trajectory for both joints.
+     - A list of joint angle pairs representing the trajectory
 
-   This function calculates the trajectory between the initial and final joint angles using a trapezoidal profile, ensuring smooth transitions while adhering to the defined limits of velocity \( V_{max} \) and acceleration \( A_{max} \).
+   **Implementation Details**:
+   - The function calculates the maximum time required for both joints to reach their target positions
+   - It uses a trapezoidal velocity profile with three phases: acceleration, constant velocity, and deceleration
+   - For each time step, it computes the position of each joint independently
+   - The trajectory ensures smooth transitions while respecting velocity (V_max) and acceleration (A_max) constraints
+   - Joint space planning guarantees that all joints start and finish their movements simultaneously
 
-2. **Function `traj_eucl(theta1_start, theta2_start, x_end, y_end, planner, time_step)`**:
+2. **Function `traj_eucl(x_start, y_start, x_end, y_end, theta1_start, theta2_start, planner, time_step)`**:
    - **Input**: 
-     - `theta1_start`: Initial angle of the first joint (rad).
-     - `theta2_start`: Initial angle of the second joint (rad).
-     - `x_end`: Final x-coordinate of the end effector (m).
-     - `y_end`: Final y-coordinate of the end effector (m).
-     - `planner`: An instance of `TrapezoidalTrajectoryPlanner` used for trajectory planning.
-     - `time_step`: Time increment for trajectory calculation (s).
+     - `x_start`, `y_start`: Initial position of the end effector in Cartesian coordinates (m)
+     - `x_end`, `y_end`: Target position of the end effector in Cartesian coordinates (m)
+     - `theta1_start`, `theta2_start`: Initial angles of the joints (rad)
+     - `planner`: An instance of `TrapezoidalTrajectoryPlanner`
+     - `time_step`: Time increment for trajectory calculation (s)
+     - `max_velocity`, `max_acceleration`: Optional parameters for motion constraints
    - **Output**: 
-     - A list of joint angle values representing the trajectory for both joints.
+     - A list of joint angle pairs representing the trajectory and the final joint angles
 
-   This function computes the joint angles necessary to reach a specified end effector position using inverse kinematics, ensuring that the original position of the arm is accurately considered for the calculations.
+   **Implementation Details**:
+   - The function calculates the Euclidean distance between the start and end positions
+   - It creates a dummy motor limits object with specified maximum velocity and acceleration
+   - The trajectory is planned as a straight line in Cartesian space using a trapezoidal velocity profile
+   - For each time point, it computes:
+     - The distance traveled along the straight-line path
+     - The corresponding Cartesian coordinates (x, y)
+     - The velocity and acceleration at that point
+   - For each Cartesian point, inverse kinematics (`ik` function) is used to determine possible joint angles
+   - The algorithm selects the joint configuration closest to the current configuration to avoid sudden jumps
+   - The function also saves trajectory plots and data for analysis if successful
 
-   In this function, it was necessary to adjust some parameters to ensure that the original position of the arm is accurately considered. This adjustment is crucial for the function to compute the correct joint angles needed to reach the desired end effector position.
+**Key Differences Between Methods**:
+- Joint space planning (`traj_joint`) moves each joint independently with coordinated timing
+- Euclidean space planning (`traj_eucl`) moves the end effector in a straight line in Cartesian space
+- Joint space planning is computationally simpler but may result in complex end effector paths
+- Euclidean space planning ensures predictable end effector movement but requires inverse kinematics calculations at each step
+- The Euclidean method includes continuity checks to select the most appropriate joint configuration
 
-These functions are vital for the effective simulation and control of the robotic arm, allowing for precise movement and trajectory planning.
+These trajectory planning methods are fundamental for robotic manipulation tasks, allowing the arm to move smoothly between positions while respecting physical constraints of the system.
 
 
